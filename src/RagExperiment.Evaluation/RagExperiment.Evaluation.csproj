@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../RagExperiment.Core/RagExperiment.Core.csproj" />
+    <ProjectReference Include="../RagExperiment.Retrieval/RagExperiment.Retrieval.csproj" />
+  </ItemGroup>
+</Project>
