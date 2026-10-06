@@ -17,6 +17,10 @@ implementado algoritmos de RAG, llamadas a modelos, análisis de documentos, ín
 ni métricas de evaluación. Las bibliotecas no contienen clases de dominio de relleno.
 Ambas aplicaciones verifican el inicio y finalizan correctamente.
 
+Está acordado el [diseño de lectura y chunking de documentos](docs/document-processing-design.md)
+para TXT, EPUB y Markdown, con estructura, metadatos y variantes comparables.
+La definición es documental; su implementación queda pendiente.
+
 ## Arquitectura
 
 | Proyecto | Función | Dependencias directas de proyectos |
