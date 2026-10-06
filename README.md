@@ -65,8 +65,19 @@ dependencias estándar de inyección de dependencias, configuración y registro.
 
 Semantic Kernel, LangChain, Kernel Memory y otros marcos de RAG de alto nivel se
 excluyen intencionalmente para mantener el control explícito de la recuperación.
-OpenAI, Qdrant.Client, Lucene.NET, ONNX Runtime y los paquetes de evaluación de IA
-se posponen hasta que una implementación los necesite. Esta estructura inicial
+Por ahora se priorizan las abstracciones estándar de Microsoft y un conjunto mínimo
+de dependencias. El acceso a IA utiliza Microsoft.Extensions.AI.Abstractions sin
+incorporar SDK ni adaptadores específicos de proveedores. Serilog y xUnit se mantienen
+como dependencias de registro y pruebas ya acordadas.
+
+Indexing referencia Lucene.Net 4.8.0-beta00018 para los futuros índices léxicos y
+experimentos con BM25. Se acepta explícitamente esta versión beta de Apache;
+su versión se administra centralmente. Todavía no se crean índices ni se implementa
+la recuperación. Los módulos adicionales de Lucene.NET se agregarán cuando sean necesarios.
+
+OpenAI, Microsoft.Extensions.AI.OpenAI, Qdrant.Client, ONNX Runtime y
+los paquetes de evaluación de IA quedan pendientes hasta que una implementación
+concreta los necesite y se decida incorporarlos. Esta estructura inicial
 no configura ni ejecuta los archivos locales existentes en `qdrant/`.
 
 ## Compilación y ejecución

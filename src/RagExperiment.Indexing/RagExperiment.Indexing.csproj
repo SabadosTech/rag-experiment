@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Lucene.Net" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../RagExperiment.Core/RagExperiment.Core.csproj" />
   </ItemGroup>
 </Project>
