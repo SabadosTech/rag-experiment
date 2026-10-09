@@ -31,6 +31,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagExperiment.Tests", "test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagExperiment.IntegrationTests", "tests\RagExperiment.IntegrationTests\RagExperiment.IntegrationTests.csproj", "{13A04EE4-7810-4B4E-812A-541921A08F3F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RagExperiment.Chunking", "src\RagExperiment.Chunking\RagExperiment.Chunking.csproj", "{2C44437E-36DA-4CB2-987A-CF4D996684F2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -173,6 +175,18 @@ Global
 		{13A04EE4-7810-4B4E-812A-541921A08F3F}.Release|x64.Build.0 = Release|Any CPU
 		{13A04EE4-7810-4B4E-812A-541921A08F3F}.Release|x86.ActiveCfg = Release|Any CPU
 		{13A04EE4-7810-4B4E-812A-541921A08F3F}.Release|x86.Build.0 = Release|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Debug|x64.Build.0 = Debug|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Debug|x86.Build.0 = Debug|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Release|x64.ActiveCfg = Release|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Release|x64.Build.0 = Release|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Release|x86.ActiveCfg = Release|Any CPU
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -189,5 +203,6 @@ Global
 		{902E0395-E804-4F3E-8E69-16DCE7DDB1E6} = {1787FE1D-075E-9E68-7218-25F1BD1BBEAB}
 		{49449664-064C-4BDE-ABCB-332C0A5AEC25} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{13A04EE4-7810-4B4E-812A-541921A08F3F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{2C44437E-36DA-4CB2-987A-CF4D996684F2} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

@@ -8,4 +8,7 @@
     <PackageReference Include="xunit" PrivateAssets="all" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/RagExperiment.Documents/RagExperiment.Documents.csproj" />
+  </ItemGroup>
 </Project>

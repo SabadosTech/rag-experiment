@@ -9,6 +9,9 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../apps/RagExperiment.Ingestion/RagExperiment.Ingestion.csproj" />
     <ProjectReference Include="../../src/RagExperiment.Generation/RagExperiment.Generation.csproj" />
+    <ProjectReference Include="../../src/RagExperiment.Documents/RagExperiment.Documents.csproj" />
+    <ProjectReference Include="../../src/RagExperiment.Chunking/RagExperiment.Chunking.csproj" />
   </ItemGroup>
 </Project>

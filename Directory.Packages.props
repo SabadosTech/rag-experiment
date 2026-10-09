@@ -3,6 +3,8 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="VersOne.Epub" Version="3.3.6" />
+    <PackageVersion Include="HtmlAgilityPack" Version="1.13.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
     <PackageVersion Include="Lucene.Net" Version="4.8.0-beta00018" />

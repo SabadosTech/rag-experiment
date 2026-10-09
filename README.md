@@ -12,21 +12,26 @@ rangos recíprocos (RRF), reordenamiento de resultados, respuestas con RAG y eva
 
 ## Estado
 
-**Arquitectura inicial / estructura básica del proyecto.** Todavía no se han
-implementado algoritmos de RAG, llamadas a modelos, análisis de documentos, índices
-ni métricas de evaluación. Las bibliotecas no contienen clases de dominio de relleno.
-Ambas aplicaciones verifican el inicio y finalizan correctamente.
+**Arquitectura inicial con contratos documentales y de chunking.** Todavía no se han
+implementado algoritmos de RAG, llamadas a modelos, índices
+ni métricas de evaluación. Documents y Chunking contienen modelos inmutables con
+validaciones; Chunking también expone el contrato de estrategia asíncrono.
+Documents también lee EPUB con VersOne.Epub y extrae estructura XHTML con
+HtmlAgilityPack. Ingestion acepta un EPUB local por parámetros y registra un resumen
+del ParsedDocument; sin parámetros, ambas aplicaciones verifican el inicio y finalizan.
 
 Está acordado el [diseño de lectura y chunking de documentos](docs/document-processing-design.md)
 para TXT, EPUB y Markdown, con estructura, metadatos y variantes comparables.
-La definición es documental; su implementación queda pendiente.
+Los modelos, el lector EPUB y el contrato de chunking están implementados; lectores
+Markdown/TXT, normalizadores y algoritmos de chunking quedan pendientes. No se incluye tokenización.
 
 ## Arquitectura
 
 | Proyecto | Función | Dependencias directas de proyectos |
 | --- | --- | --- |
 | RagExperiment.Core | Primitivas y contratos de dominio compartidos y pequeños | Ninguna |
-| RagExperiment.Documents | Carga, análisis, normalización y división en fragmentos | Core |
+| RagExperiment.Documents | Modelos documentales, lectura EPUB y extracción XHTML; futura normalización | Core |
+| RagExperiment.Chunking | Modelos de chunks y contrato de estrategia; futuros algoritmos | Documents |
 | RagExperiment.Indexing | Indexación y almacenamiento vectorial, léxico, de conceptos y de metadatos | Core |
 | RagExperiment.Retrieval | Recuperación independiente, transformación de consultas, fusión y reordenamiento | Core, Indexing |
 | RagExperiment.Concepts | Extracción, normalización y relaciones entre conceptos | Core |
@@ -34,8 +39,8 @@ La definición es documental; su implementación queda pendiente.
 | RagExperiment.Evaluation | Evaluación de recuperación; futura evaluación independiente de respuestas | Core, Retrieval |
 | RagExperiment.Cli | Aplicación principal de experimentos y raíz de composición | Core, Retrieval, Concepts, Generation, Evaluation |
 | RagExperiment.Ingestion | Aplicación de ingesta y raíz de composición | Core, Documents, Indexing, Concepts |
-| RagExperiment.Tests | Pruebas rápidas y aisladas; actualmente una prueba básica de infraestructura | Generation |
-| RagExperiment.IntegrationTests | Futuras pruebas de infraestructura y componentes reales; actualmente vacío | Ninguna |
+| RagExperiment.Tests | Infraestructura y validaciones de modelos documentales y chunks | Generation, Documents, Chunking |
+| RagExperiment.IntegrationTests | Lectura de EPUB reales del corpus local; futuras pruebas de infraestructura | Documents |
 
 Las bibliotecas están en `src/`, las aplicaciones en `apps/` y las pruebas en
 `tests/`. Core no referencia otros proyectos. Las dependencias apuntan hacia Core;
@@ -58,8 +63,8 @@ inyección de dependencias, la configuración, el registro de eventos, la selecc
 de proveedores y el ciclo de vida de la aplicación. Un servicio alojado de inicio,
 con dependencias inyectadas, comprueba que la configuración y `ILogger<T>` funcionen.
 Las bibliotecas deben usar inyección por constructor, sin crear contenedores ni
-resolver dependencias ordinarias mediante `IServiceProvider`. Todavía no se
-registran proveedores de modelos ni servicios de las bibliotecas.
+resolver dependencias ordinarias mediante `IServiceProvider`. Ingestion registra
+el lector EPUB y su resolver; todavía no se registran proveedores de modelos.
 
 Serilog se configura en cada aplicación con una única salida a consola que muestra
 fecha y hora, nivel, contexto de origen, mensaje y excepción. Las clases de las
@@ -101,8 +106,11 @@ dotnet run --project apps/RagExperiment.Cli
 dotnet run --project apps/RagExperiment.Ingestion
 ```
 
-La prueba básica de xUnit valida únicamente la infraestructura. El proyecto de
-pruebas de integración todavía no contiene pruebas ni requiere servicios externos.
+Las pruebas xUnit validan infraestructura, identidad, spans, orden, jerarquía,
+procedencia, metadata JSON, inmutabilidad, lectura EPUB y uso desde Ingestion.
+Los fixtures EPUB se generan localmente sin servicios externos. El proyecto de
+integración también prueba `data/documents/1984 - George Orwell.epub` cuando está
+disponible; si falta ese archivo local, omite la prueba con un motivo explícito.
 
 ## Configuración y secretos
 

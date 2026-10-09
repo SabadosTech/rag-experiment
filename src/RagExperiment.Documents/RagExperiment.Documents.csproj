@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="VersOne.Epub" />
+    <PackageReference Include="HtmlAgilityPack" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../RagExperiment.Core/RagExperiment.Core.csproj" />
   </ItemGroup>
 </Project>

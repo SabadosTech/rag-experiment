@@ -1,126 +1,184 @@
-# Interfaces de lectura y chunking de documentos
+# Contratos de lectura y chunking de documentos
 
-Estado: diseño acordado, pendiente de implementación. Este documento no incorpora
-código, selecciona bibliotecas ni define embeddings, vector stores, BM25 o
-extracción de conceptos.
+## Estado y arquitectura
 
-## Objetivo y arquitectura
+Los modelos documentales y de chunks, sus validaciones y el contrato de estrategia
+están implementados. También están implementados IDocumentReader, EpubDocumentReader
+y DocumentReaderResolver. Normalizadores, lectores Markdown/TXT y algoritmos de
+chunking siguen pendientes.
 
-Procesar archivos locales TXT, EPUB y Markdown, conservar su estructura y producir
-variantes comparables de chunking en memoria.
+**Archivo → lectura → ParsedDocument → normalización → NormalizedDocument → chunking → ChunkingResult**
 
-**Archivo → lectura → documento estructurado → normalización → chunking → conjunto de fragmentos**
+- RagExperiment.Documents contiene la representación documental, lectura EPUB y futura normalización.
 
-Los contratos de procesamiento pertenecen a `RagExperiment.Documents`; los modelos
-compartidos con etapas posteriores pertenecen a `RagExperiment.Core`. La aplicación
-de ingesta seleccionará y coordinará componentes mediante inyección de dependencias.
-No se agrega una interfaz de orquestación ni dependencias hacia los índices.
+- RagExperiment.Chunking depende de Documents y contiene los modelos de chunks e IChunkingStrategy.
 
-## Contratos de procesamiento
+Documents no depende de Chunking.
+Estos modelos permanecen en sus respectivas bibliotecas;
+Core no recibe tipos anticipados.
+La aplicación de ingesta será la raíz de composición.
 
-| Interfaz propuesta | Entrada y salida | Responsabilidad |
-| --- | --- | --- |
-| `IDocumentReader` | `DocumentSource` → `ParsedDocument` | Interpretar el formato y extraer texto, estructura, metadatos y referencias de origen. Declarar formatos admitidos, identificador y versión. |
-| `IDocumentNormalizer` | `ParsedDocument` → `NormalizedDocument` | Aplicar limpieza conservadora y actualizar las posiciones de los bloques. Declarar identificador y versión. |
-| `IDocumentChunker` | `NormalizedDocument` + configuración → `ChunkSet` | Aplicar una estrategia intercambiable, conservar procedencia y registrar algoritmo, versión y parámetros efectivos. |
+## Modelos implementados
 
-Los lectores serán específicos de TXT, EPUB y Markdown. La lectura será asíncrona;
-normalización y chunking podrán ser síncronos porque operan en memoria. Todas las
-operaciones admitirán cancelación.
-
-## Modelos y datos conservados
-
-| Modelo propuesto | Datos y significado |
+| Modelo | Datos y significado |
 | --- | --- |
-| `DocumentSource` | Identificador lógico estable, ruta local, formato explícito opcional y metadatos del corpus. La ruta no define la identidad. |
-| `ParsedDocument` | Texto extraído, bloques ordenados, jerarquía de secciones, metadatos y procedencia de lectura. |
-| `NormalizedDocument` | Texto canónico, estructura con posiciones actualizadas e identidad de la revisión procesada. |
-| `DocumentBlock` | Identificador, tipo (encabezado, párrafo, lista, código u otro), sección padre, rango en el texto y localizador de origen. |
-| `DocumentChunk` | Identificador, orden, texto, rangos de origen, secciones involucradas y referencias a documento, revisión y variante. |
-| `ChunkSet` | Fragmentos de una variante, configuración efectiva, versiones de procesamiento y advertencias. |
+| ParsedDocument | Identificador lógico, texto extraído, nodos ordenados y metadata. |
+| NormalizedDocument | Identificador lógico, revisión explícita, texto canónico, nodos actualizados y metadata. |
+| DocumentNode | ID, tipo, padre opcional, span y localizador de origen opcional. |
+| DocumentNodeKind | Documento, sección, heading, párrafo, sentencia, lista, tabla, código u otro. |
+| TextSpan | Inicio inclusivo y longitud en unidades UTF-16; fin exclusivo. |
+| SourceLocator | Líneas originales y recurso/ancla opcionales. |
+| Chunk | ID, documento, secuencia, texto canónico, nivel, padre opcional, nodos fuente, spans, headings y metadata. |
+| ChunkingResult | Documento, revisión, variante, estrategia y versión, chunks ordenados y advertencias. |
 
-### Metadatos
+Los tipos tienen propiedades de solo lectura y copian las colecciones recibidas.
+La metadata es un diccionario de JsonElement clonados: admite valores JSON y
+permanece válida tras liberar el JsonDocument original. Identidad y procedencia
+son campos separados; la metadata no los reemplaza.
 
-Título, autores, idioma y etiquetas serán campos comunes. Los atributos personalizados
-admitirán valores simples serializables. Los valores aportados por el corpus
-prevalecen sobre los extraídos del archivo. La procedencia del procesamiento se
-mantiene separada y no puede sobrescribirse mediante atributos personalizados.
+### Estructura y posiciones
 
-### Localización y contexto
+Los nodos se almacenan en una colección con referencias al padre por ID. Se ordenan
+por inicio del span, admitiendo posiciones iguales y spans anidados. Los padres
+deben existir; los IDs son únicos y no se permiten ciclos. No se exige que el padre
+aparezca antes que el hijo ni se agrega inferencia estructural.
 
-Los rangos tienen inicio inclusivo y fin exclusivo, medidos en unidades UTF-16 de
-.NET. En el documento leído se refieren al texto extraído; después de normalizar,
-los rangos de bloques y fragmentos se refieren al texto normalizado.
+En ParsedDocument los spans apuntan al texto extraído. En NormalizedDocument y los
+chunks apuntan al texto canónico. El normalizador futuro deberá actualizar las
+posiciones. Los rangos no son offsets de bytes ni índices de tokens o grafemas.
+No existe un mapeo completo entre texto extraído y normalizado.
 
-Conservar referencias al archivo cuando estén disponibles: líneas para TXT y
-Markdown; recurso interno, capítulo y ancla para EPUB. No se prometen páginas ni
-offsets de bytes. Los destinos de enlaces e imágenes de Markdown se conservan como
-datos de origen, sin cargar recursos externos.
+SourceLocator conserva líneas de TXT/Markdown o recurso interno y ancla de EPUB
+cuando estén disponibles. Las líneas son inclusivas y comienzan en uno; una línea
+final requiere una inicial y no puede precederla. No se prometen páginas.
 
-El texto de cada fragmento procede del documento normalizado. Los títulos y la
-jerarquía acompañan al fragmento como contexto; no se insertan automáticamente en
-su texto.
+El texto del chunk es canónico; los headings acompañan como contexto y no se
+insertan automáticamente. Los spans pueden referirse a varios rangos. No se
+impone concatenación literal ni cobertura completa del documento en estos modelos:
+esas políticas se definirán con los algoritmos.
 
-### Identidad y reproducibilidad
+### Identidad y jerarquía
 
-Distinguir documento lógico, revisión del contenido procesado, variante de chunking
-y fragmento. La revisión considera contenido, metadatos efectivos y versiones de
-lectura y normalización. Los identificadores de variantes y fragmentos serán
-deterministas; las fechas de ejecución quedan fuera de su cálculo.
+Documento lógico, revisión, variante y chunk tienen identidades explícitas
+suministradas por el llamador. No hay hashing ni generación automática.
+La identidad lógica no se deriva de una ruta de archivo.
 
-Cada ejecución usa configuración explícita. Cambiar estrategia, versión o parámetros
-produce otra variante y permite conservar ambas para comparación. La persistencia
-de estas salidas se definirá en otra etapa.
+Sequence es global dentro del resultado, comienza en cero y es contigua. Los
+chunks raíz tienen Level cero y ningún padre. Cada hijo referencia un chunk del
+mismo resultado y tiene el nivel del padre más uno. Esto impide ciclos sin
+implementar una estrategia jerárquica ni parent-child retrieval.
 
-## Comportamiento por formato y normalización
+El constructor de ChunkingResult recibe un NormalizedDocument para validar
+pertenencia, referencias a nodos y spans dentro del texto. Conserva DocumentId y
+RevisionId, sin retener el documento completo. No reordena los chunks recibidos.
+Resultados vacíos son válidos; las advertencias son explícitas, no automáticas.
+Las colecciones de referencias y spans pueden estar vacías; los algoritmos futuros
+definirán sus requisitos de cobertura y trazabilidad.
 
-- **TXT:** conservar párrafos, sin inferir capítulos ni encabezados.
-- **Markdown:** conservar encabezados y jerarquía, párrafos, listas y bloques de
-  código. Extraer texto visible de enlaces e imágenes y registrar sus destinos.
-- **EPUB:** leer contenido textual en orden de lectura, conservar capítulos y
-  encabezados disponibles y extraer metadatos del libro. Excluir imágenes y evitar
-  interpretar navegación como contenido principal.
-- **Normalización:** unificar saltos de línea y retirar marcado de presentación
-  durante la extracción. Preservar mayúsculas, acentos, puntuación e indentación
-  significativa de código. No aplicar stemming, eliminación de stopwords ni
-  limpieza específica de un índice.
+## Contrato implementado
 
-## Estrategias iniciales de chunking
+IChunkingStrategy expone StrategyId, StrategyVersion y:
 
-### Tamaño fijo
+```csharp
+Task<ChunkingResult> ChunkAsync(
+    NormalizedDocument document,
+    CancellationToken cancellationToken = default);
+```
 
-Tamaño máximo y solapamiento configurables en unidades UTF-16. Validar tamaño
-positivo y `0 ≤ solapamiento < tamaño`. Evitar cortes dentro de pares sustitutos
-Unicode. La configuración efectiva se conserva junto con los resultados.
+Las estrategias locales podrán devolver tareas completadas sin Task.Run. El mismo
+contrato permitirá operaciones asíncronas futuras. La configuración se inyectará
+por constructor en cada implementación; no existe una bolsa genérica de opciones.
+Las implementaciones deberán respetar la cancelación.
 
-### Estructural
+Todavía no hay estrategias ejecutables, registro AddChunking, contenedor DI propio
+ni contratos implementados de normalizadores. El contrato de lectura se describe abajo.
 
-Configurar límites por párrafo, sección o capítulo y un tamaño máximo. Agrupar
-unidades consecutivas dentro del límite elegido. Dividir unidades demasiado largas
-por párrafos y finalmente por tamaño fijo. Esta estrategia inicial no usa
-solapamiento.
+## Estrategias previstas
 
-## Fallos y criterios de aceptación
+| Estrategia futura | Dependencias conceptuales |
+| --- | --- |
+| FixedTokenChunker | Mecanismo de tokenización y opciones; ambos postergados por completo. |
+| RecursiveChunker | Límites progresivos de estructura/texto; política de tamaños pendiente. |
+| StructureAwareChunker | Tipos de nodos, jerarquía y spans documentales. |
+| SemanticBreakpointChunker | Servicio futuro mediante abstracción independiente de proveedor. |
 
-- Leer ejemplos pequeños de los tres formatos y verificar orden, estructura,
-  metadatos y procedencia.
-- Comprobar conservación de acentos, Unicode, listas y código.
-- Verificar cobertura del texto, tamaños, solapamiento, orden y división de
-  secciones extensas.
-- Repetir el procesamiento y obtener las mismas identidades y fragmentos; cambiar
-  parámetros y obtener una variante distinta.
-- Validar que cada rango corresponde al texto del fragmento y permite rastrear su
-  sección de origen.
-- Rechazar configuraciones inválidas antes de procesar. Reportar archivos ilegibles,
-  formatos no admitidos y EPUB corruptos o protegidos como errores del documento.
-- Para documentos sin texto, devolver un conjunto vacío con advertencia. Los
-  metadatos opcionales ausentes no impiden procesar.
-- En lotes, continuar con otros archivos ante un fallo individual y registrar el
-  resultado de cada documento.
+Se documentan sin clases incompletas, opciones vacías, thresholds, tamaños ni
+overlaps. No se crea una abstracción de tokenización ni una abstracción semántica.
+El contrato central no depende de OpenAI, Microsoft.Extensions.AI, Qdrant o Lucene.
 
-## Límites de esta etapa
+## Lectura y normalización futuras
 
-La primera versión asume procesamiento en memoria. Tokens, estrategias semánticas,
-conectores remotos, persistencia y enriquecimientos posteriores quedan pendientes,
-sin agregar interfaces anticipadas. Los casos de aceptación anteriores guían la
-implementación futura; todavía no hay lectores, normalizadores ni chunkers ejecutables.
+Se conserva como referencia el objetivo de trabajar con archivos locales TXT,
+EPUB y Markdown. EPUB ya usa VersOne.Epub 3.3.6 y HtmlAgilityPack 1.13.0 dentro
+de Documents; TXT y Markdown quedan pendientes.
+IDocumentNormalizer sigue siendo una propuesta para otra etapa;
+el anterior IDocumentChunker/ChunkSet se reemplaza por IChunkingStrategy/ChunkingResult.
+
+- TXT: conservar párrafos sin inferir capítulos ni headings.
+- Markdown: conservar headings, jerarquía, párrafos, listas y código; conservar
+  destinos de enlaces e imágenes sin cargar recursos externos.
+- EPUB: conservar orden de lectura, capítulos, headings y metadata; excluir
+  imágenes y navegación del contenido principal.
+- Normalización: limpieza conservadora, preservando acentos, puntuación,
+  mayúsculas e indentación significativa. No aplicar stemming ni stopwords.
+
+Título, autores, idioma y etiquetas podrán conservarse en metadata. Para los
+futuros lectores se mantiene la intención de dar precedencia a los datos del corpus
+sobre los extraídos, separando procedencia del procesamiento de atributos personalizados.
+El lector EPUB combina metadata por clave: los datos del corpus prevalecen sobre
+los extraídos, sin mezcla profunda.
+
+La futura reproducibilidad distinguirá documento, revisión y variante; cambiar
+estrategia, versión o parámetros deberá permitir conservar variantes comparables.
+La generación determinista de IDs, configuración efectiva y persistencia se
+definirán con las implementaciones, sin usar fechas para determinar identidad.
+
+Los futuros tests de procesamiento deberán comprobar conservación de Unicode,
+estructura y procedencia, cobertura del texto y límites de las estrategias.
+En lotes se prevé continuar ante fallos individuales y reportar formatos no
+admitidos, archivos ilegibles o EPUB corruptos/protegidos. El procesamiento en lotes
+todavía no se implementa; la lectura individual EPUB ya reporta esos errores.
+
+## Validación de esta etapa y límites
+
+Las pruebas xUnit construyen modelos en memoria y comprueban identidad, orden,
+jerarquía, spans UTF-16, localizadores, metadata JSON e inmutabilidad.
+También se prueban EPUB generados localmente, extracción XHTML, errores, resolver
+extensible y lectura de archivos desde Ingestion. No requieren infraestructura externa.
+
+Quedan pendientes parsing Markdown/TXT, normalización ejecutable, algoritmos, opciones de chunking,
+tokenización, embeddings, indexación, retrieval, enriquecimiento, generación y
+evaluación RAG. No se crean interfaces para esos subsistemas.
+
+## Lectura EPUB implementada
+
+IDocumentReader expone FormatId y ReadAsync(Stream, DocumentReadContext,
+CancellationToken), que devuelve Task<ParsedDocument>. La aplicación decide ruta,
+apertura, formato e identidad lógica. DocumentReadContext copia metadata del corpus.
+DocumentReaderResolver recibe lectores por constructor, selecciona por FormatId sin
+distinguir mayúsculas y rechaza duplicados/desconocidos. Un lector Markdown o un
+adaptador EPUB alternativo puede sustituirse sin modificar los modelos o chunkers.
+
+EpubDocumentReader usa OpenBookAsync y GetReadingOrderAsync y carga solo XHTML
+necesario. El stream debe ser legible y posicionable, ubicado en cero; pertenece al
+llamador y queda abierto ante éxito o fallo. No descarga recursos externos.
+
+Cada recurso genera una sección. Secciones XHTML explícitas y headings h1–h6
+forman jerarquías locales; headings cierran ante otro de nivel igual o superior
+dentro del mismo contenedor. El índice no crea otra jerarquía y puede faltar.
+El lector omite documentos/elementos de navegación, imágenes, scripts y estilos.
+Representa párrafos, headings, listas, tablas y pre como nodos, con texto único
+y spans calculados al emitirlo. Los IDs locales dependen del recorrido, no de fechas
+ni rutas físicas. La procedencia conserva recurso interno e id XHTML disponible.
+
+Whitespace HTML se colapsa fuera de pre; bloques se separan con dos LF, br con LF,
+elementos de lista/filas con LF y celdas con tabuladores. Pre conserva indentación
+y normaliza finales de línea a LF. Esto es extracción; aún requiere normalización
+común antes del chunking. No interpreta CSS ni reproduce una página renderizada.
+
+El lector falla sin resultado parcial ante fuente corrupta, contenido principal
+ausente/remoto/cifrado o XHTML sin body. DocumentReadException conserva la causa;
+argumentos, I/O y cancelación mantienen sus tipos. La cancelación se comprueba entre
+llamadas a VersOne y durante extracción; no interrumpe una llamada interna sin token.
+La metadata extraída usa title, authors (array), language (primer idioma) y description.
+Consultar los README de Documents e Ingestion para ejemplos ejecutables.
